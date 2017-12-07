@@ -10,5 +10,8 @@ View(join2011)
 
 View(join2009)
 
-
 View(groundtruth)
+table(groundtruth$Mussels.)
+
+groundtruth2009 <- groundtruth[groundtruth$Year==2009,]
+groundtruth2011 <- groundtruth[groundtruth$Year==2011,]
