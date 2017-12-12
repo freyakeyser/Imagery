@@ -176,6 +176,7 @@ nav.2011$nav <- 'nav'
 loc.2011 <- merge(nav.2011, mus.2011, by.x=c("year","STATION_NUM","PHOTO_FILE_NAME"), by.y=c("Year","Track","ID.Number"), all.y=TRUE)
 dim(loc.2011)
 #[1] 1431   29
+#[1] 1431   30
 
 unique(loc.2011$nav)
 loc.2011.missing <- loc.2011[is.na(loc.2011$nav),]
@@ -183,6 +184,8 @@ dim(loc.2011.missing)
 #[1] 144  30
 
 #[1] 221  30
+
+# [1] 144  30
 
 #write.csv(loc.2011.missing, 'RightJoin2011navOnImageMissing_Aug222017.csv')
 #144 images have missing nav data
@@ -202,6 +205,8 @@ dim(loc.2009)
 #loc.2009$DUPID <- paste(loc.2009$year,loc.2009$STATION_NUM,loc.2009$PHOTO_FILE_NAME,sep=".")
 #sort(table(loc.2009$DUPID) )
 
+# [1] 1773   30
+
 
 unique(loc.2009$nav)
 loc.2009.missing <- loc.2009[is.na(loc.2009$nav),]
@@ -211,12 +216,7 @@ dim(loc.2009.missing)
 #write.csv(loc.2009.missing, 'RightJoin2009navOnImageMissing.csv')
 #139 images have missing nav data
 
-
-
-
-
-
-
+# [1] 55 31
 
 write.csv(loc.2009, 'RightJoin2009navOnImages.csv')
 
@@ -224,8 +224,11 @@ write.csv(loc.2009, 'RightJoin2009navOnImages.csv')
 loc.2011 <- merge(nav.2011, mussels, by.x=c("year","STATION_NUM","PHOTO_FILE_NAME"), by.y=c("Year","Track","ID.Number"), all.y=TRUE)
 dim(loc.2011)
 [1] 1348   29
-
+# [1] 3204   30
 unique(loc.2011$ImageFile)
+
+# dim(loc.2011.missing)
+# [1]  0 30
 
 loc.2011.missing <- loc.2011[is.na(loc.2011$ImageFile),]
 
@@ -239,9 +242,9 @@ write.csv(loc.2011.missing, 'leftJoin2011navOnImageMissing.csv')
 
 #Find duplicate combinations of "unique combo" of EXPED_CD, STATION_NUM, PHOTO_FILE_NAME  OR   year, Track, ID.Number 
 
-nav.2009 <- read.csv('2009 CSV Format for R.csv')
-nav.2011 <- read.csv('2011 CSV Format for R.csv')
-mussels <- read.csv('Horse Mussel Groundtruthing.csv')
+nav.2009 <- read.csv('2009 CSV Format for R_final.csv')
+nav.2011 <- read.csv('2011 CSV Format for R_final.csv')
+mussels <- read.csv('Horse Mussel Groundtruthing_final.csv')
 
 
 #Find records with missing station, lat/lon, time, or photo name
@@ -280,14 +283,6 @@ dups <- as.data.frame(dups)
 dups[dups$dups>1,]
 
 
-nav.2011$CNT <-1
-nav.2011$UID <- paste(nav.2011$EXPED_CD,'.',nav.2011$STATION_NUM,'.',nav.2011$PHOTO_FILE_NAME, sep='')
-dups <- tapply(nav.2011$CNT,INDEX=(nav.2011$UID), FUN=sum)
-str(dups)
-dups <- as.data.frame(dups)
-dups[dups$dups>1,]
-
-
 mussels$CNT <-1
 mussels$UID <- paste(mussels$Year,'.',mussels$Track,'.',mussels$ID.Number, sep='')
 dups <- tapply(mussels$CNT,INDEX=(mussels$UID), FUN=sum)
@@ -296,30 +291,18 @@ dups <- as.data.frame(dups)
 dups[dups$dups>1,]
 
 
-
-
-
-
 dupsForCheck <- dups[dups$dups>1,]
-write.csv(dupsForCheck,'DuplicatesToCheck.csv')
+# write.csv(dupsForCheck,'DuplicatesToCheck.csv')
 
 dim(dups[dups$dups>1,])
 [1] 66
-
-
-
-
-
-
+# NULL
 
 
 #Nav file == 3117 records
 # 66 have duplicate --- i.e. 3117 + 66 duplicates = 3183
 
-
-
-
-loc.mussels[loc.mussels$UID==2009.21.194814,]
+loc.mussels[loc.mussels$UID=="2009.21.194814",]
 
 #Records where no images found: 
 loc.mussels[is.na(loc.mussels$ID.Date),] 
@@ -328,4 +311,4 @@ loc.mussels[is.na(loc.mussels$ID.Date),]
 loc.mussels <- merge(nav, mussels, by.x=c("year","STATION_NUM","PHOTO_FILE_NAME"), by.y=c("Year","Track","ID.Number"))
 #inner join
 [1] 2726   28
-
+#[1] 3005   30
