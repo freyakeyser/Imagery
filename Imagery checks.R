@@ -320,6 +320,68 @@ length(unique(photos2009$STATION_NUM[photos2009$Mussels %in% c("MusselReef")])) 
 length(unique(photos2009$STATION_NUM[photos2009$Mussels %in% c("Shells")])) #16 stations with Shells
 
 photos2009[photos2009$Mussels %in% c("MusselReef"),] # 4 photos of mussel reef
+clean2009$unid[clean2009$Mussels %in% c("MusselReef")] # station 32, photos 103130, 103430, 103546, 103944
+# groundtruth2009[groundtruth2009$Mussels == "MusselReef",] 
 
+require(ggplot2)
+require(rgdal)
+require(sp)
+require(raster)
+maritimes_sp <- readOGR("Y:/Maps/shp/Maritimes_UTM.shp")
+maritimes_sp <- spTransform(maritimes_sp, CRS("+proj=longlat +datum=WGS84"))
+maritimes_sp <- crop(maritimes_sp, extent(-67.35, -62.9, 43.35, 46.2))
+maritimes <- fortify(maritimes_sp)
+
+levels(photos2009$Mussels)
+
+ggplot() + 
+  geom_polygon(data=maritimes, aes(long, lat, group=group), fill="darkgrey", colour="black") +
+  geom_point(data=photos2009, aes(mean_lon, mean_lat, colour=Mussels)) + theme_bw() + theme(panel.grid=element_blank()) +
+  coord_map()
+
+
+### 2011
+require(plyr)
+dim(clean2011)
+length(unique(clean2011$STATION_NUM)) # 22 stations with photos
+stations2011 <- ddply(.data=clean2011, .(PHOTO_LAT, PHOTO_LONG),
+                      summarize,
+                      stations=length(unique(STATION_NUM)),
+                      photos = length(PHOTO_FILE_NAME),
+                      unphotos = length(unique(PHOTO_FILE_NAME)))
+stations2011[stations2011$stations > 1,] # so each station relates to a specific set of coordinates
+stations2011[stations2011$photos > 1,] # there were a few instances where 2 photos were taken at the exact same location/station. This is fine. 
+dim(stations2011) # 1339 different locations (3 locations had 2 photos taken)
+
+photos2011 <- ddply(clean2011, .(STATION_NUM, Mussels),
+                    summarize,
+                    mean_lat=mean(PHOTO_LAT),
+                    mean_lon=mean(PHOTO_LONG),
+                    num_photos=length(unique(unid)))
+
+length(unique(photos2011$STATION_NUM[photos2011$Mussels %in% c("MusselReef", "Shells")])) #6 stations with Reef OR Shells
+length(unique(photos2011$STATION_NUM[photos2011$Mussels %in% c("MusselReef")])) #1 stations with Reef
+length(unique(photos2011$STATION_NUM[photos2011$Mussels %in% c("Shells")])) #6 stations with Shells
+
+photos2011[photos2011$Mussels %in% c("MusselReef"),] # 9 photos of mussel reef
+clean2011$unid[clean2011$Mussels %in% c("MusselReef")] # station 176, photos 719, 713, 714, 712, 711, 710, 705, 704, 703
+# groundtruth2011[groundtruth2011$Mussels == "MusselReef",] 
+
+require(ggplot2)
+require(rgdal)
+require(sp)
+require(raster)
+maritimes_sp <- readOGR("Y:/Maps/shp/Maritimes_UTM.shp")
+maritimes_sp <- spTransform(maritimes_sp, CRS("+proj=longlat +datum=WGS84"))
+maritimes_sp <- crop(maritimes_sp, extent(-67.35, -62.9, 43.35, 46.2))
+maritimes <- fortify(maritimes_sp)
+
+photos2011$Mussels <- factor(photos2011$Mussels, levels = c("NA", "Shells", "MusselReef"))
+
+ggplot() + 
+  geom_polygon(data=maritimes, aes(long, lat, group=group), fill="darkgrey", colour="black") +
+  geom_point(data=photos2011, aes(mean_lon, mean_lat, colour=Mussels)) + theme_bw() + theme(panel.grid=element_blank()) +
+  coord_map() + 
+  ggtitle("2011 Images")
 
 
