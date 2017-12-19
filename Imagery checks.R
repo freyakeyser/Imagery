@@ -194,13 +194,23 @@ table(photoswithoutnav2009$STATION_NUM)
 
 ### are these all valid station numbers?
 table(nav2009$STATION_NUM[nav2009$STATION_NUM %in% unique(photoswithoutnav2009$STATION_NUM)])
-### yes. so these photos have issues with their photo_file_names. I am NOT going to bother trying to recover these 14 nav records as we have matched photo/nav for many photos
+### yes. so we see that we have plenty of matched photos from these stations, so these photos may have issues with their photo_file_names. I am NOT going to bother trying to recover these 14 nav records as we have matched photo/nav for many photos
 ### at these stations. Good enough. Let's move ahead without these 14 photos. 
+
+### but wait, do any of these photos show mussel reef? If so they are extra valuable and I should try to match them up. 
+unique(photoswithoutnav2009$Mussels)
+### some have shells, but no mussels
+photoswithoutnav2009[photoswithoutnav2009$Mussels=="Shells",]
+
+# dim(nav2009[nav2009$unid=="23_115508" | nav2009$PHOTO_FILE_NAME=="115508" | nav2009$STATION_NUM==23,]) # definitely not there. Fortunately, we have other photos from this station so this shouldnt matter
+# dim(nav2009[nav2009$unid=="24_98" | nav2009$PHOTO_FILE_NAME=="98" | nav2009$STATION_NUM==24,]) # definitely not there. Fortunately, we have other photos from this station so this shouldnt matter
+# dim(nav2009[nav2009$unid=="35_144206" | nav2009$PHOTO_FILE_NAME=="144206" | nav2009$STATION_NUM==35,]) # definitely not there. Fortunately, we have other photos from this station so this shouldnt matter
+
 ### CLEAN DF FOR 2009: 
 clean2009 <- join2009_full[!is.na(join2009_full$EXPED_CD),]
 dim(clean2009) # 1759   29
+length(unique(clean2009$unid))
 write.csv(clean2009, "clean2009.csv")
-
 
 
 ### now we'll do the same checks for 2011. based on Caira's report, station 2 and 29 had issues. 
@@ -265,10 +275,51 @@ table(photoswithoutnav2011$STATION_NUM)
 
 ### are these all valid station numbers?
 table(nav2011$STATION_NUM[nav2011$STATION_NUM %in% unique(photoswithoutnav2011$STATION_NUM)])
-### yes. so these photos may have issues with their photo_file_names. I am NOT going to bother trying to recover these 89 nav records as we have matched photo/nav for many photos
+### yes, and we have plenty of valid/matched photos, so these photos may have issues with their photo_file_names. I am NOT going to bother trying to recover these 89 nav records as we have matched photo/nav for many photos
 ### at these stations. Good enough. Let's move ahead without these 89 photos. 
+
+### but wait, do any of these photos show mussel reef? If so they are extra valuable and I should try to match them up. 
+unique(photoswithoutnav2011$Mussels)
+### no mussels or shells so we can probably get rid of these.
+photoswithoutnav2011[photoswithoutnav2011$Mussels=="Shells",]
+
+# dim(nav2009[nav2009$unid=="23_115508" | nav2009$PHOTO_FILE_NAME=="115508" | nav2009$STATION_NUM==23,]) # definitely not there. Fortunately, we have other photos from this station so this shouldnt matter
+# dim(nav2009[nav2009$unid=="24_98" | nav2009$PHOTO_FILE_NAME=="98" | nav2009$STATION_NUM==24,]) # definitely not there. Fortunately, we have other photos from this station so this shouldnt matter
+# dim(nav2009[nav2009$unid=="35_144206" | nav2009$PHOTO_FILE_NAME=="144206" | nav2009$STATION_NUM==35,]) # definitely not there. Fortunately, we have other photos from this station so this shouldnt matter
+
 ### CLEAN DF FOR 2011: 
 clean2011 <- join2011_full[!is.na(join2011_full$EXPED_CD),]
 dim(clean2011) # 1342   29
+length(unique(clean2011$unid))
 write.csv(clean2011, "clean2011.csv")
+
+
+
+####################################################################################################### 
+### DATA SUMMARY
+
+require(plyr)
+length(unique(clean2009$STATION_NUM)) # 34 stations with photos
+stations2009 <- ddply(.data=clean2009, .(PHOTO_LAT, PHOTO_LONG),
+                      summarize,
+                      stations=length(unique(STATION_NUM)),
+                      photos = length(PHOTO_FILE_NAME),
+                      unphotos = length(unique(PHOTO_FILE_NAME)))
+stations2009[stations2009$stations > 1,] # so each station relates to a specific set of coordinates
+stations2009[stations2009$photos > 1,] # there were a few instances where 2 photos were taken at the exact same location/station. This is fine. 
+dim(stations2009) # 1754 different locations (5 locations had 2 photos taken)
+
+photos2009 <- ddply(clean2009, .(STATION_NUM, Mussels),
+                    summarize,
+                    mean_lat=mean(PHOTO_LAT),
+                    mean_lon=mean(PHOTO_LONG),
+                    num_photos=length(unique(unid)))
+
+length(unique(photos2009$STATION_NUM[photos2009$Mussels %in% c("MusselReef", "Shells")])) #17 stations with Reef OR Shells
+length(unique(photos2009$STATION_NUM[photos2009$Mussels %in% c("MusselReef")])) #1 stations with Reef
+length(unique(photos2009$STATION_NUM[photos2009$Mussels %in% c("Shells")])) #16 stations with Shells
+
+photos2009[photos2009$Mussels %in% c("MusselReef"),] # 4 photos of mussel reef
+
+
 
