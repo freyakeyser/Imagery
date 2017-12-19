@@ -1,5 +1,7 @@
 ### Imagery QA/QC 
 
+require(dplyr)
+
 #####################################################################################
 ### Prep the groundtruth data
 ### groundtruth corresponds to image files that Caira checked for mussel presence. 
@@ -51,21 +53,24 @@ dim(nav2011) #1287   25
 nav2011$PHOTO_FILE_NAME <- as.character(nav2011$PHOTO_FILE_NAME)
 
 # create a unique ID for each photo. Hypothetically, this should correspond to the groundtruth unid
+caira2009$unid <- paste0(caira2009$STATION_NUM, "_", as.character(caira2009$PHOTO_FILE_NAME))
+caira2011$unid <- paste0(caira2011$STATION_NUM, "_", as.character(caira2011$PHOTO_FILE_NAME))
 nav2009$unid <- paste0(nav2009$STATION_NUM, "_", nav2009$PHOTO_FILE_NAME)
 nav2011$unid <- paste0(nav2011$STATION_NUM, "_", nav2011$PHOTO_FILE_NAME)
 
-dim(nav2009) # has 1769 rows
-dim(nav2011) # has 1348 rows
+dim(nav2009) # has 1718 rows
+dim(nav2011) # has 1287 rows
 
 #####################################################################################
 ### caira's remaining unresolved error lists are in "Y:/Caira/NRCAN Photo Data/Unresolved..."
 # 2009 has 47 nav records with missing photos
 # 2011 has 59 nav records with missing photos
+### Jessica said to ignore these. We will not bother tracking down the photos for these records at this time.
 
 # below are double checks of what Caira did (NOT DONE!!):
 #####################################################################################
 ### Inner join the photos and nav data (these records are presumably CLEAN)
-require(dplyr)
+# require(dplyr)
 join2009_clean <- inner_join(nav2009, groundtruth2009)
 dim(join2009_clean) # 1718   29
 join2011_clean <- inner_join(nav2011, groundtruth2011)
@@ -77,6 +82,8 @@ length(join2009_clean$unid[is.na(join2009_clean$EXPED_CD)])==0
 length(join2009_clean$unid[is.na(join2009_clean$ID.Date)])==0
 length(join2011_clean$unid[is.na(join2011_clean$EXPED_CD)])==0
 length(join2011_clean$unid[is.na(join2011_clean$ID.Date)])==0
+### all true, so every nav record is associated with a photo, and vice versa!
+### This is our CLEAN dataset (dfs join2009_clean and join2011_clean)
 
 #####################################################################################
 ### full join the photos (df groundtruth2009/2011) and the nav data (df nav2009/2011)
@@ -86,14 +93,33 @@ dim(join2009_full) # 1773   29
 ### since there were 1773 records in groundtruth 2009, it is likely that there are more photos than nav data records
 length(join2009_full$unid[is.na(join2009_full$EXPED_CD)]) #55
 length(join2009_full$unid[is.na(join2009_full$ID.Date)]) #0
+### confirmed. we have 55 photos missing a nav record in 2009
+
+### let's also do this join backwards
+join2009_full_2 <- full_join(groundtruth2009, nav2009) 
+dim(join2009_full_2) # 1773   29
+### so this means that there are 1773-1718 = 55 rows that are "missing" from one or the other
+length(join2009_full_2$unid[is.na(join2009_full_2$EXPED_CD)]) #55
+length(join2009_full_2$unid[is.na(join2009_full_2$ID.Date)]) #0
+### same results
+### confirmed. we have 55 photos missing a nav record in 2009
 
 
 join2011_full <- full_join(nav2011, groundtruth2011) 
 dim(join2011_full) # 1431   29
 ### so this means that there are 1431-1287 = 144 rows that are "missing" from one or the other
-length(join2011_full$unid[is.na(join2011_full$EXPED_CD)]) #55
+length(join2011_full$unid[is.na(join2011_full$EXPED_CD)]) #144
 length(join2011_full$unid[is.na(join2011_full$ID.Date)]) #0
+### confirmed. we have 144 photos missing a nav record in 2011
 
+### let's also do this join backwards
+join2011_full_2 <- full_join(groundtruth2011, nav2011) 
+dim(join2011_full_2) # 1431   29
+### so this means that there are 1431-1287 = 144 rows that are "missing" from one or the other
+length(join2011_full_2$unid[is.na(join2011_full_2$EXPED_CD)]) #144
+length(join2011_full_2$unid[is.na(join2011_full_2$ID.Date)]) #0
+### same results
+### confirmed. we have 144 photos missing a nav record in 2011
 
 #####################################################################################
 ### left join the photos on the nav
@@ -103,20 +129,88 @@ dim(join2009_left) # 1718   29
 ### meaning that nav records are missing
 
 length(join2009_left$unid[is.na(join2009_left$ID.Date)])==0
-### this shows that some of the nav records do not correspond to a photo
+length(join2009_left$unid[is.na(join2009_left$EXPED_CD)])==0
+### because this join is normalized on nav records, we have all nav records and there are no nav records missing photos in this df
 
 #####################################################################################
 ### right join the photos on the nav
 join2009_right <- right_join(nav2009, groundtruth2009)
 dim(join2009_right) # 1773   29
-### so we have more photos than nav data, and we can identify the photos without nav data 
-photoswithoutnav <- join2009_right[is.na(join2009_right$EXPED_CD),]
+
+### so we definitely have more photos than nav data
+
+### Let's identify the photos without nav data 
+photoswithoutnav2009 <- join2009_full[is.na(join2009_full$EXPED_CD),]
+dim(photoswithoutnav2009) # 55 29
+View(photoswithoutnav2009)
+summary(photoswithoutnav2009)
+table(photoswithoutnav2009$STATION_NUM)
+
+## something happened at station 5. Caira noted that there were 41 nav records from station 4 that did not have photos. Could these be station 5 nav records?
+## need to look at the photo_file_names from photoswithoutnav2009 to be sure
+fromcairaslist <- as.character(c(193654, 193724, 193754, 193820, 193852, 193922, 193954, 194026,
+ 194052, 194122, 194152, 194220, 194242, 194322, 194422, 194454,
+ 194522, 194548, 194622, 194652, 194720, 194752, 194854, 194918,
+ 194954, 195022, 195052, 195124, 195156, 195222, 195254, 195322,
+ 195354, 195424, 195452, 195524, 195550, 195624, 195654, 195724,
+ 195754))
+unique(fromcairaslist == c(photoswithoutnav2009$PHOTO_FILE_NAME[photoswithoutnav2009$STATION_NUM==5]))
+### the photo_file_names all match
+
+table(nav2009[nav2009$STATION_NUM%in% c(4,5),]$STATION_NUM)
+table(groundtruth2009[groundtruth2009$STATION_NUM%in% c(4,5),]$STATION_NUM)
+### so contrary to what CC report says, there are photos attributed to station 5 in groundtruth2009, and they do not match a nav2009 record. We do NOT have more nav records than photos.
+### did she remove them from the final file? Maybe they are still in the original?
+table(caira2009[caira2009$STATION_NUM%in% c(4,5),]$STATION_NUM)
+### we have 100 nav records for 2009 station 4 and none for 5. We have 59 + 41 photos from stations 4 and 5. Likely that 51 of the station 4 records should be for station 5.
+### check the photo_file_names to be sure
+check <- c(caira2009$PHOTO_FILE_NAME[caira2009$STATION_NUM == 4 & caira2009$PHOTO_FILE_NAME > 190000])
+check <- check[!is.na(check)]
+unique(fromcairaslist == check)
+### all true, so i think we can safely grab the nav2009 records from station 4 where photo_file_name > 190000 and change station_num to 5. Then re-join with groundtruth2009.
+length(check)
+nav2009 <- rbind(nav2009, caira2009[caira2009$STATION_NUM == 4 & caira2009$PHOTO_FILE_NAME > 190000,])         
+nav2009 <- nav2009[!is.na(nav2009$STATION_NUM),]
+length(nav2009$STATION_NUM[nav2009$STATION_NUM == 4 & nav2009$PHOTO_FILE_NAME > 190000]) == 41
+
+nav2009$STATION_NUM[nav2009$STATION_NUM == 4 & nav2009$PHOTO_FILE_NAME > 190000] <- 5
+nav2009$unid <- paste0(nav2009$STATION_NUM, "_", nav2009$PHOTO_FILE_NAME)
+
+### do the full join again for photos (df groundtruth2009) and the nav data (df nav2009)
+join2009_full <- full_join(nav2009, groundtruth2009) 
+dim(join2009_full) # 1773   29
+### so this means that there are 1773-1759 = 14 rows that are "missing" from one or the other
+### since there were 1773 records in groundtruth 2009, it is likely that there are more photos than nav data records
+length(join2009_full$unid[is.na(join2009_full$EXPED_CD)]) #14
+length(join2009_full$unid[is.na(join2009_full$ID.Date)]) #0
+### confirmed. we have 14 photos missing a nav record in 2009
+
+### now let's recreate photoswithoutnav2009 again
+photoswithoutnav2009 <- join2009_full[is.na(join2009_full$EXPED_CD),]
+dim(photoswithoutnav2009) # 14 29
+View(photoswithoutnav2009)
+summary(photoswithoutnav2009)
+table(photoswithoutnav2009$STATION_NUM)
+
+### are these all valid station numbers?
+table(nav2009$STATION_NUM[nav2009$STATION_NUM %in% unique(photoswithoutnav2009$STATION_NUM)])
+### yes. so these photos have issues with their photo_file_names. I am NOT going to bother trying to recover these 14 nav records as we have matched photo/nav for many photos
+### at these stations. Good enough. Let's move ahead without these 14 photos. 
+### CLEAN DF FOR 2009: 
+clean2009 <- join2009_full[!is.na(join2009_full$EXPED_CD),]
+dim(clean2009) # 1759   29
+write.csv(clean2009, "clean2009.csv")
+
+photoswithoutnav2011 <- join2011_full[is.na(join2011_full$EXPED_CD),]
+dim(photoswithoutnav2011) # 144 29
+
+
 
 
 # > dim(read.csv("Y:/Caira/NRCAN Photo Data/Data Checks/Old Data Check/2009 CSV Format for R.csv"))
-# [1] 1769   25
+# [1] 1769  25
 # > dim(read.csv("Y:/Caira/NRCAN Photo Data/Data Checks/Old Data Check/2011 CSV Format for R.csv"))
-# [1] 1348   25
+# [1] 1348  25
 # > dim(read.csv("Y:/Caira/NRCAN Photo Data/Data Checks/Working Files 1/2009 CSV Format for R_working1.csv"))
 # [1] 1769   25
 # > dim(read.csv("Y:/Caira/NRCAN Photo Data/Data Checks/Working Files 1/2011 CSV Format for R_working1.csv"))
