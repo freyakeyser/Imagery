@@ -384,4 +384,4 @@ ggplot() +
   coord_map() + 
   ggtitle("2011 Images")
 
-
+#### need to fix overplotting. also, ask jessica what end goal is
