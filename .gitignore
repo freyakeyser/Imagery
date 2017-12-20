@@ -35,7 +35,16 @@ vignettes/*.pdf
 # Data files
 *.csv
 *.xlsx
+*.shp
+*.cpg
+*.dbf
+*.prj
+*.sbn
+*.sbx
+*.shx
+
 
 # Figures
 *.pdf
 *.png
+
