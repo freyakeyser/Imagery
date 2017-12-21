@@ -348,7 +348,7 @@ photos2009_chk <- ddply(clean2009, .(STATION_NUM),
 photosper$STATION_NUM <- as.numeric(gsub(x=photosper$folder, pattern="200903900", replacement= ""))
 photos2009_chk <- full_join(photos2009_chk, photosper)
 photos2009_chk[!photos2009_chk$photos_clean == photos2009_chk$nphotos,]
-### since there are more photos in clean
+### since there are more photos in the directory than in clean, clean2009 is fine.
 
 
 
@@ -480,6 +480,62 @@ ggplot() +
 dev.off()
 
 ### 2011
+### how many photos were scrapped? were any stations completely removed?
+dim(clean2011)
+dim(groundtruth2011) ## 89 photos were removed
+folders2011 <- as.character(list.files("Y:/Caira/NRCAN Photo Data/Photos/2011036/"))
+folders2011 <- as.numeric(folders2011)
+require(stringr)
+folders2011 <- str_pad(folders2011,width = 4, side = "left",pad = 0)
+folders2011 <- folders2011[!is.na(folders2011)]
+nphotos11 <- NULL
+filenames11 <- NULL
+photosper <- NULL
+for(i in 1:length(folders2011)){
+  nphotos11[i] <- length(list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2011036/", folders2011[i]), pattern = "*.JPG")) + 
+    length(list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2011036/", folders2011[i]), pattern = "*.jpg"))
+  filenames11[i] <- data.frame(names = c(list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2011036/", folders2011[i]), pattern = "*.JPG"), 
+                                       list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2011036/", folders2011[i]), pattern = "*.jpg")))
+  photos <- data.frame(nphotos=nphotos11[i], folder=folders2011[i])
+  photosper <- rbind(photosper, photos)
+}
+sum(nphotos11) == dim(groundtruth2011)[1] ## 92 photos not in directory but in groundtruth2011.
+groundtruth_photos <- ddply(.data=groundtruth2011, .(STATION_NUM),
+                            summarize,
+                            groundphotos = length(unique(unid)))
+groundtruth_photos$folder <- str_pad(groundtruth_photos$STATION_NUM,width = 4, side = "left",pad = 0)
+groundtruthphotos_chk <- full_join(groundtruth_photos, photosper)
+groundtruthphotos_chk[!groundtruthphotos_chk$photos == groundtruthphotos_chk$nphotos,]
+
+photos2011 <- ddply(clean2011, .(STATION_NUM, Mussels),
+                    summarize,
+                    mean_lat=mean(PHOTO_LAT),
+                    mean_lon=mean(PHOTO_LONG),
+                    num_photos=length(unique(unid)))
+
+photos2011$folder <- str_pad(photos2011$STATION_NUM,width = 4, side = "left",pad = 0)
+photos2011_chk <- ddply(.data=photos2011, .(folder),
+                        summarize,
+                        photos_clean = sum(num_photos))
+groundtruthphotos_chk <- full_join(groundtruthphotos_chk, photos2011_chk)
+
+groundtruthphotos_chk[!groundtruthphotos_chk$groundphotos == groundtruthphotos_chk$photos_clean,]
+groundtruthphotos_chk[!groundtruthphotos_chk$nphotos == groundtruthphotos_chk$photos_clean,]
+### there are 2 stations where the number of photos in the CLEAN dataset is greater than the number of possible photos (stn 35 and 69)
+### investigate these:
+filenames11
+sort(clean2011$PHOTO_FILE_NAME[clean2011$STATION_NUM==35])
+### Station 35 photo 411 is missing!
+
+sort(clean2011$PHOTO_FILE_NAME[clean2011$STATION_NUM==69])
+### Station 69 photo 69020 and 69029 are missing!
+
+clean2011 <- clean2011[!clean2011$unid %in% c("35_411", "69_69020", "69_69029"),]
+
+### Now we're really clean. 
+#write.csv(clean2011, "clean2011.csv")
+
+### 2011
 require(plyr)
 dim(clean2011)
 length(unique(clean2011$STATION_NUM)) # 22 stations with photos
@@ -490,13 +546,7 @@ stations2011 <- ddply(.data=clean2011, .(PHOTO_LAT, PHOTO_LONG),
                       numphotos = length(unique(PHOTO_FILE_NAME)))
 stations2011[stations2011$stations > 1,] # so each station relates to a specific set of coordinates
 stations2011[stations2011$photos > 1,] # there were a few instances where 2 photos were taken at the exact same location/station. This is fine. 
-dim(stations2011) # 1339 different locations (3 locations had 2 photos taken)
-
-photos2011 <- ddply(clean2011, .(STATION_NUM, Mussels),
-                    summarize,
-                    mean_lat=mean(PHOTO_LAT),
-                    mean_lon=mean(PHOTO_LONG),
-                    num_photos=length(unique(unid)))
+dim(stations2011) # 1336 different locations (3 locations had 2 photos taken)
 
 length(unique(photos2011$STATION_NUM[photos2011$Mussels %in% c("MusselReef", "Shells")])) #6 stations with Reef OR Shells
 length(unique(photos2011$STATION_NUM[photos2011$Mussels %in% c("MusselReef")])) #1 stations with Reef
@@ -519,8 +569,8 @@ levels(photos2011$Mussels) <- c("0", "2", "1")
 photos2011$Mussels <- factor(photos2011$Mussels, levels = c("0", "1", "2"))
 photos2011$Mussels <- as.numeric(photos2011$Mussels)
 photos2011_plot <- ddply(.data=photos2011, .(mean_lon, mean_lat),
-                        summarize, 
-                        Mussels = max(as.numeric(Mussels)))
+                         summarize, 
+                         Mussels = max(as.numeric(Mussels)))
 
 photos2011_plot$Mussels <- as.factor(photos2011_plot$Mussels)
 levels(photos2011_plot$Mussels) <- c("Absent", "Shells", "Reef")
@@ -530,7 +580,7 @@ ggplot() +
   geom_point(data=photos2011_plot %>% arrange(Mussels), aes(mean_lon, mean_lat, colour=Mussels), size=3) + theme_bw() + theme(panel.grid=element_blank()) +
   coord_map() + 
   ggtitle("2011 Images") #+
-  facet_wrap(~Mussels)
+facet_wrap(~Mussels)
 
 clean2011utm <- read.csv("clean2011_utm.csv", stringsAsFactors = F)
 clean2011utm <- dplyr::select(clean2011utm, unid, POINT_X, POINT_Y)
@@ -547,11 +597,11 @@ photos2011_tile <- ddply(.data=clean2011, .(STATION_NUM, POINT_X, POINT_Y),
                          NumPhotos = length(unique(unid)))
 
 mapagg_2011 <- make.grid(x = photos2011_tile$POINT_X,
-                    y = photos2011_tile$POINT_Y,
-                    z = photos2011_tile$NumPhotos, 
-                    byx = 10000, byy = 10000, 
-                    xlim = c(186500, 385700), ylim = c(4885000, 5022000), 
-                    fun = sum)
+                         y = photos2011_tile$POINT_Y,
+                         z = photos2011_tile$NumPhotos, 
+                         byx = 10000, byy = 10000, 
+                         xlim = c(186500, 385700), ylim = c(4885000, 5022000), 
+                         fun = sum)
 mapagg_2011 <- melt(mapagg_2011)
 
 colnames(mapagg_2011) <- c("LongUTM", "LatUTM", "NumPhotos")
@@ -593,53 +643,3 @@ ggplot() +
   xlab("Longitude") + 
   ggtitle("2011 imagery")
 dev.off()
-
-
-### how many photos were scrapped? were any stations completely removed?
-dim(clean2011)
-dim(groundtruth2011) ## 89 photos were removed
-folders2011 <- as.character(list.files("Y:/Caira/NRCAN Photo Data/Photos/2011036/"))
-folders2011 <- as.numeric(folders2011)
-require(stringr)
-folders2011 <- str_pad(folders2011,width = 4, side = "left",pad = 0)
-folders2011 <- folders2011[!is.na(folders2011)]
-nphotos11 <- NULL
-filenames11 <- NULL
-photosper <- NULL
-for(i in 1:length(folders2011)){
-  nphotos11[i] <- length(list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2011036/", folders2011[i]), pattern = "*.JPG")) + 
-    length(list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2011036/", folders2011[i]), pattern = "*.jpg"))
-  filenames11[i] <- data.frame(names = c(list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2011036/", folders2011[i]), pattern = "*.JPG"), 
-                                       list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2011036/", folders2011[i]), pattern = "*.jpg")))
-  photos <- data.frame(nphotos=nphotos11[i], folder=folders2011[i])
-  photosper <- rbind(photosper, photos)
-}
-sum(nphotos11) == dim(groundtruth2011)[1] ## 92 photos not in directory but in groundtruth2011.
-groundtruth_photos <- ddply(.data=groundtruth2011, .(STATION_NUM),
-                            summarize,
-                            groundphotos = length(unique(unid)))
-groundtruth_photos$folder <- str_pad(groundtruth_photos$STATION_NUM,width = 4, side = "left",pad = 0)
-groundtruthphotos_chk <- full_join(groundtruth_photos, photosper)
-groundtruthphotos_chk[!groundtruthphotos_chk$photos == groundtruthphotos_chk$nphotos,]
-photos2011$folder <- str_pad(photos2011$STATION_NUM,width = 4, side = "left",pad = 0)
-photos2011_chk <- ddply(.data=photos2011, .(folder),
-                        summarize,
-                        photos_clean = sum(num_photos))
-groundtruthphotos_chk <- full_join(groundtruthphotos_chk, photos2011_chk)
-
-groundtruthphotos_chk[!groundtruthphotos_chk$groundphotos == groundtruthphotos_chk$photos_clean,]
-groundtruthphotos_chk[!groundtruthphotos_chk$nphotos == groundtruthphotos_chk$photos_clean,]
-### there are 2 stations where the number of photos in the CLEAN dataset is greater than the number of possible photos (stn 35 and 69)
-### investigate these:
-filenames11
-sort(clean2011$PHOTO_FILE_NAME[clean2011$STATION_NUM==35])
-### Station 35 photo 411 is missing!
-
-sort(clean2011$PHOTO_FILE_NAME[clean2011$STATION_NUM==69])
-### Station 69 photo 69020 and 69029 are missing!
-
-clean2011 <- clean2011[!clean2011$unid %in% c("35_411", "69_69020", "69_69029"),]
-
-### Now we're really clean. 
-write.csv(clean2011, "clean2011.csv")
-
