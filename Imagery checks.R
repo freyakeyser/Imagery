@@ -291,8 +291,8 @@ photoswithoutnav2011[photoswithoutnav2011$Mussels=="Shells",]
 clean2011 <- join2011_full[!is.na(join2011_full$EXPED_CD),]
 dim(clean2011) # 1342   29
 length(unique(clean2011$unid))
-write.csv(clean2011, "clean2011.csv")
-
+### write.csv(clean2011, "clean2011.csv")
+### NOPE! Go down further (Line 625). While the records above all have nav data associated with a groundtruthing record, there are photos missing from our photo directory.
 
 
 ####################################################################################################### 
@@ -308,6 +308,50 @@ stations2009 <- ddply(.data=clean2009, .(PHOTO_LAT, PHOTO_LONG),
 stations2009[stations2009$stations > 1,] # so each station relates to a specific set of coordinates
 stations2009[stations2009$photos > 1,] # there were a few instances where 2 photos were taken at the exact same location/station. This is fine. 
 dim(stations2009) # 1754 different locations (5 locations had 2 photos taken)
+
+### how many photos were scrapped? were any stations completely removed?
+dim(clean2009)
+dim(groundtruth2009) ## 14 photos were removed
+folders2009 <- list.files("Y:/Caira/NRCAN Photo Data/Photos/2009039/")
+folders2009 <- as.numeric(folders2009)
+folders2009 <- folders2009[!is.na(folders2009)]
+nphotos <- NULL
+filenames <- NULL
+photosper <- NULL
+for(i in 1:length(folders2009)){
+ nphotos[i] <- length(list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2009039/", folders2009[i]), pattern = "*.JPG")) + 
+   length(list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2009039/", folders2009[i]), pattern = "*.jpg"))
+ filenames[i] <- data.frame(names = c(list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2009039/", folders2009[i]), pattern = "*.JPG"), 
+                   list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2009039/", folders2009[i]), pattern = "*.jpg")))
+ photos <- data.frame(nphotos=nphotos[i], folder=folders2009[i])
+ photosper <- rbind(photosper, photos)
+}
+sum(nphotos) == dim(groundtruth2009)[1]
+photoswithoutnav2009$unid 
+#  [1] "23_115508"Y "24_98"Y     "32_102358"N "34_133926"N "35_142936"Y "35_144206"Y "36_154850"N "51_156"Y    "55_174158"Y*2 "55_174148"N "55_174200"N "58_95256"N 
+# [13] "73_120156"Y "73_152112"N
+## of the photos without nav data in 2009, 7 do not actually correspond to a photo in the folder directory. Is this due to typos or what? Presumably since
+## there were more photos listed in groundtruth and in clean2009 than there are in the directory, these are typos and never really existed. 
+sum(nphotos) == dim(groundtruth2009)[1] - 7
+## the one remaining discrepancy is likely because there are 2 photos attributed to 55_174158 in the directory, but only one in groundtruth2009. This is fine. 
+
+photoswithoutnav2009$directory <- c("Y", "Y", "N", "N", "Y", "Y", "N", "Y", "Y", "N", "N", "N", "Y", "N")
+
+dim(photoswithoutnav2009[photoswithoutnav2009$directory == "Y",])[1]
+
+### so that means that only 7 photos did not have nav data associated! So all stations almost certainly have clean records.
+
+### but are there photos in the clean records that don't actually exist?
+photos2009_chk <- ddply(clean2009, .(STATION_NUM),
+                        summarize,
+                        photos_clean=length(unique(unid)))
+photosper$STATION_NUM <- as.numeric(gsub(x=photosper$folder, pattern="200903900", replacement= ""))
+photos2009_chk <- full_join(photos2009_chk, photosper)
+photos2009_chk[!photos2009_chk$photos_clean == photos2009_chk$nphotos,]
+### since there are more photos in clean
+
+
+
 
 photos2009 <- ddply(clean2009, .(STATION_NUM, Mussels),
                     summarize,
@@ -332,13 +376,108 @@ maritimes_sp <- spTransform(maritimes_sp, CRS("+proj=longlat +datum=WGS84"))
 maritimes_sp <- crop(maritimes_sp, extent(-67.35, -62.9, 43.35, 46.2))
 maritimes <- fortify(maritimes_sp)
 
-levels(photos2009$Mussels)
+levels(photos2009$Mussels) <- c("0", "2", "1")
+photos2009$Mussels <- factor(photos2009$Mussels, levels = c("0", "1", "2"))
+photos2009$Mussels <- as.numeric(photos2009$Mussels)
+photos2009_plot <- ddply(.data=photos2009, .(STATION_NUM),
+                         summarize, 
+                         mean_lat = mean(mean_lat),
+                         mean_lon = mean(mean_lon),
+                         Mussels = max(as.numeric(Mussels)),
+                         NumPhotos = sum(num_photos))
 
+photos2009_plot$Mussels <- as.factor(photos2009_plot$Mussels)
+levels(photos2009_plot$Mussels) <- c("Absent", "Shells", "Reef")
+
+### MUSSEL RESULTS
 ggplot() + 
   geom_polygon(data=maritimes, aes(long, lat, group=group), fill="darkgrey", colour="black") +
-  geom_point(data=photos2009, aes(mean_lon, mean_lat, colour=Mussels)) + theme_bw() + theme(panel.grid=element_blank()) +
-  coord_map()
+  geom_point(data=photos2009_plot %>% arrange(Mussels), aes(mean_lon, mean_lat, colour=Mussels), size=3) + theme_bw() + theme(panel.grid=element_blank()) +
+  coord_map() + 
+  ggtitle("2009 Images")
 
+### PHOTO COUNTS
+ggplot() + 
+  geom_polygon(data=maritimes, aes(long, lat, group=group), fill="darkgrey", colour="black") +
+  geom_point(data=photos2009_plot, aes(mean_lon, mean_lat, size=NumPhotos), alpha=0.5) + theme_bw() + theme(panel.grid=element_blank()) +
+  coord_map() + 
+  ggtitle("2009 Photos")
+
+
+## Inshore cod survey bycatch for Irene
+require(rgdal) 
+require(maptools)
+require(mapplots)
+require(raster)
+#require(shapefiles)
+require(reshape2)
+#require(mapproj)
+require(rgeos)
+require(dplyr)
+
+maritimes_UTM <- spTransform(maritimes_sp, CRS("+proj=utm +zone=20 +datum=WGS84 +units=m +no_defs"))
+maritimes_UTM <- fortify(maritimes_UTM)
+
+clean2009utm <- read.csv("clean2009_utm.csv", stringsAsFactors = F)
+clean2009utm$Mussels <- as.factor(clean2009utm$Mussels)
+clean2009utm <- dplyr::select(clean2009utm, unid, POINT_X, POINT_Y)
+clean2009 <- left_join(clean2009, clean2009utm)
+
+
+levels(clean2009$Mussels) <- c("0", "2", "1")
+clean2009$Mussels <- factor(clean2009$Mussels, levels = c("0", "1", "2"))
+clean2009$Mussels <- as.numeric(clean2009$Mussels)
+
+photos2009_tile <- ddply(.data=clean2009, .(STATION_NUM, POINT_X, POINT_Y),
+                         summarize, 
+                         Mussels = max(as.numeric(Mussels)),
+                         NumPhotos = length(unique(unid)))
+
+mapagg_2009 <- make.grid(x = photos2009_tile$POINT_X,
+                    y = photos2009_tile$POINT_Y,
+                    z = photos2009_tile$NumPhotos, 
+                    byx = 10000, byy = 10000, 
+                    xlim = c(186500, 385700), ylim = c(4885000, 5022000), 
+                          fun = sum)
+mapagg_2009 <- melt(mapagg_2009)
+
+colnames(mapagg_2009) <- c("LongUTM", "LatUTM", "NumPhotos")
+
+options(scipen=999)
+png("photo distribution 2009.png", height=500, width=800, res=100)
+ggplot() + 
+  geom_tile(data=mapagg_2009[!is.na(mapagg_2009$NumPhotos),],aes(LongUTM,LatUTM,fill=NumPhotos))+
+  geom_polygon(data=maritimes_UTM, aes(long, lat, group=group), fill="darkgrey", colour=NA) +
+  scale_fill_gradient(name="Number of photos",guide="legend",low = "yellow", high = "red") + 
+  theme_bw() + theme(panel.grid=element_blank()) + 
+  coord_cartesian(xlim = c(175500, 426700), ylim = c(4854000, 5053000)) +
+  ylab("Latitude") +
+  xlab("Longitude") + 
+  ggtitle("2009 imagery")
+dev.off()
+
+mapmuss_2009 <- make.grid(x = photos2009_tile$POINT_X,
+                         y = photos2009_tile$POINT_Y,
+                         z = photos2009_tile$Mussels, 
+                         byx = 10000, byy = 10000, 
+                         xlim = c(186500, 385700), ylim = c(4885000, 5022000), 
+                         fun = max)
+mapmuss_2009 <- melt(mapmuss_2009)
+
+colnames(mapmuss_2009) <- c("LongUTM", "LatUTM", "Mussels")
+
+options(scipen=999)
+png("mussel distribution 2009.png", height=500, width=800, res=100)
+ggplot() + 
+  geom_tile(data=mapmuss_2009[!is.na(mapmuss_2009$Mussels),],aes(LongUTM,LatUTM,fill=as.factor(Mussels)))+
+  geom_polygon(data=maritimes_UTM, aes(long, lat, group=group), fill="darkgrey", colour=NA) +
+  scale_fill_manual(name="Mussel presence",guide="legend", breaks=c(1,2,3), values=c("yellow", "orange", "red"), labels=c("Absent", "Shells", "Reef")) + 
+  theme_bw() + theme(panel.grid=element_blank()) + 
+  coord_cartesian(xlim = c(175500, 426700), ylim = c(4854000, 5053000)) +
+  ylab("Latitude") +
+  xlab("Longitude") + 
+  ggtitle("2009 imagery")
+dev.off()
 
 ### 2011
 require(plyr)
@@ -348,7 +487,7 @@ stations2011 <- ddply(.data=clean2011, .(PHOTO_LAT, PHOTO_LONG),
                       summarize,
                       stations=length(unique(STATION_NUM)),
                       photos = length(PHOTO_FILE_NAME),
-                      unphotos = length(unique(PHOTO_FILE_NAME)))
+                      numphotos = length(unique(PHOTO_FILE_NAME)))
 stations2011[stations2011$stations > 1,] # so each station relates to a specific set of coordinates
 stations2011[stations2011$photos > 1,] # there were a few instances where 2 photos were taken at the exact same location/station. This is fine. 
 dim(stations2011) # 1339 different locations (3 locations had 2 photos taken)
@@ -376,12 +515,131 @@ maritimes_sp <- spTransform(maritimes_sp, CRS("+proj=longlat +datum=WGS84"))
 maritimes_sp <- crop(maritimes_sp, extent(-67.35, -62.9, 43.35, 46.2))
 maritimes <- fortify(maritimes_sp)
 
-photos2011$Mussels <- factor(photos2011$Mussels, levels = c("NA", "Shells", "MusselReef"))
+levels(photos2011$Mussels) <- c("0", "2", "1")
+photos2011$Mussels <- factor(photos2011$Mussels, levels = c("0", "1", "2"))
+photos2011$Mussels <- as.numeric(photos2011$Mussels)
+photos2011_plot <- ddply(.data=photos2011, .(mean_lon, mean_lat),
+                        summarize, 
+                        Mussels = max(as.numeric(Mussels)))
+
+photos2011_plot$Mussels <- as.factor(photos2011_plot$Mussels)
+levels(photos2011_plot$Mussels) <- c("Absent", "Shells", "Reef")
 
 ggplot() + 
   geom_polygon(data=maritimes, aes(long, lat, group=group), fill="darkgrey", colour="black") +
-  geom_point(data=photos2011, aes(mean_lon, mean_lat, colour=Mussels)) + theme_bw() + theme(panel.grid=element_blank()) +
+  geom_point(data=photos2011_plot %>% arrange(Mussels), aes(mean_lon, mean_lat, colour=Mussels), size=3) + theme_bw() + theme(panel.grid=element_blank()) +
   coord_map() + 
-  ggtitle("2011 Images")
+  ggtitle("2011 Images") #+
+  facet_wrap(~Mussels)
 
-#### need to fix overplotting. also, ask jessica what end goal is
+clean2011utm <- read.csv("clean2011_utm.csv", stringsAsFactors = F)
+clean2011utm <- dplyr::select(clean2011utm, unid, POINT_X, POINT_Y)
+clean2011 <- left_join(clean2011, clean2011utm)
+
+
+levels(clean2011$Mussels) <- c("0", "2", "1")
+clean2011$Mussels <- factor(clean2011$Mussels, levels = c("0", "1", "2"))
+clean2011$Mussels <- as.numeric(clean2011$Mussels)
+
+photos2011_tile <- ddply(.data=clean2011, .(STATION_NUM, POINT_X, POINT_Y),
+                         summarize, 
+                         Mussels = max(as.numeric(Mussels)),
+                         NumPhotos = length(unique(unid)))
+
+mapagg_2011 <- make.grid(x = photos2011_tile$POINT_X,
+                    y = photos2011_tile$POINT_Y,
+                    z = photos2011_tile$NumPhotos, 
+                    byx = 10000, byy = 10000, 
+                    xlim = c(186500, 385700), ylim = c(4885000, 5022000), 
+                    fun = sum)
+mapagg_2011 <- melt(mapagg_2011)
+
+colnames(mapagg_2011) <- c("LongUTM", "LatUTM", "NumPhotos")
+
+options(scipen=999)
+
+png("photo distribution 2011.png", height=500, width=800, res=100)
+ggplot() + 
+  geom_tile(data=mapagg_2011[!is.na(mapagg_2011$NumPhotos),],aes(LongUTM,LatUTM,fill=NumPhotos))+
+  geom_polygon(data=maritimes_UTM, aes(long, lat, group=group), fill="darkgrey", colour=NA) +
+  scale_fill_gradient(name="Number of photos",guide="legend",low = "yellow", high = "red") + 
+  theme_bw() + theme(panel.grid=element_blank()) + 
+  coord_cartesian(xlim = c(175500, 426700), ylim = c(4854000, 5053000)) +
+  ylab("Latitude") +
+  xlab("Longitude") + 
+  ggtitle("2011 imagery")
+dev.off()
+
+mapmuss_2011 <- make.grid(x = photos2011_tile$POINT_X,
+                          y = photos2011_tile$POINT_Y,
+                          z = photos2011_tile$Mussels, 
+                          byx = 10000, byy = 10000, 
+                          xlim = c(186500, 385700), ylim = c(4885000, 5022000), 
+                          fun = max)
+mapmuss_2011 <- melt(mapmuss_2011)
+
+colnames(mapmuss_2011) <- c("LongUTM", "LatUTM", "Mussels")
+
+options(scipen=999)
+
+png("mussel distribution 2011.png", height=500, width=800, res=100)
+ggplot() + 
+  geom_tile(data=mapmuss_2011[!is.na(mapmuss_2011$Mussels),],aes(LongUTM,LatUTM,fill=as.factor(Mussels)))+
+  geom_polygon(data=maritimes_UTM, aes(long, lat, group=group), fill="darkgrey", colour=NA) +
+  scale_fill_manual(name="Mussel presence",guide="legend", breaks=c(1,2,3), values=c("yellow", "orange", "red"), labels=c("Absent", "Shells", "Reef")) + 
+  theme_bw() + theme(panel.grid=element_blank()) + 
+  coord_cartesian(xlim = c(175500, 426700), ylim = c(4854000, 5053000)) +
+  ylab("Latitude") +
+  xlab("Longitude") + 
+  ggtitle("2011 imagery")
+dev.off()
+
+
+### how many photos were scrapped? were any stations completely removed?
+dim(clean2011)
+dim(groundtruth2011) ## 89 photos were removed
+folders2011 <- as.character(list.files("Y:/Caira/NRCAN Photo Data/Photos/2011036/"))
+folders2011 <- as.numeric(folders2011)
+require(stringr)
+folders2011 <- str_pad(folders2011,width = 4, side = "left",pad = 0)
+folders2011 <- folders2011[!is.na(folders2011)]
+nphotos11 <- NULL
+filenames11 <- NULL
+photosper <- NULL
+for(i in 1:length(folders2011)){
+  nphotos11[i] <- length(list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2011036/", folders2011[i]), pattern = "*.JPG")) + 
+    length(list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2011036/", folders2011[i]), pattern = "*.jpg"))
+  filenames11[i] <- data.frame(names = c(list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2011036/", folders2011[i]), pattern = "*.JPG"), 
+                                       list.files(paste0("Y:/Caira/NRCAN Photo Data/Photos/2011036/", folders2011[i]), pattern = "*.jpg")))
+  photos <- data.frame(nphotos=nphotos11[i], folder=folders2011[i])
+  photosper <- rbind(photosper, photos)
+}
+sum(nphotos11) == dim(groundtruth2011)[1] ## 92 photos not in directory but in groundtruth2011.
+groundtruth_photos <- ddply(.data=groundtruth2011, .(STATION_NUM),
+                            summarize,
+                            groundphotos = length(unique(unid)))
+groundtruth_photos$folder <- str_pad(groundtruth_photos$STATION_NUM,width = 4, side = "left",pad = 0)
+groundtruthphotos_chk <- full_join(groundtruth_photos, photosper)
+groundtruthphotos_chk[!groundtruthphotos_chk$photos == groundtruthphotos_chk$nphotos,]
+photos2011$folder <- str_pad(photos2011$STATION_NUM,width = 4, side = "left",pad = 0)
+photos2011_chk <- ddply(.data=photos2011, .(folder),
+                        summarize,
+                        photos_clean = sum(num_photos))
+groundtruthphotos_chk <- full_join(groundtruthphotos_chk, photos2011_chk)
+
+groundtruthphotos_chk[!groundtruthphotos_chk$groundphotos == groundtruthphotos_chk$photos_clean,]
+groundtruthphotos_chk[!groundtruthphotos_chk$nphotos == groundtruthphotos_chk$photos_clean,]
+### there are 2 stations where the number of photos in the CLEAN dataset is greater than the number of possible photos (stn 35 and 69)
+### investigate these:
+filenames11
+sort(clean2011$PHOTO_FILE_NAME[clean2011$STATION_NUM==35])
+### Station 35 photo 411 is missing!
+
+sort(clean2011$PHOTO_FILE_NAME[clean2011$STATION_NUM==69])
+### Station 69 photo 69020 and 69029 are missing!
+
+clean2011 <- clean2011[!clean2011$unid %in% c("35_411", "69_69020", "69_69029"),]
+
+### Now we're really clean. 
+write.csv(clean2011, "clean2011.csv")
+
