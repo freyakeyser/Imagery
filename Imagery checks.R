@@ -304,9 +304,9 @@ stations2009 <- ddply(.data=clean2009, .(PHOTO_LAT, PHOTO_LONG),
                       summarize,
                       stations=length(unique(STATION_NUM)),
                       photos = length(PHOTO_FILE_NAME),
-                      unphotos = length(unique(PHOTO_FILE_NAME)))
+                      numphotos = length(unique(PHOTO_FILE_NAME)))
 stations2009[stations2009$stations > 1,] # so each station relates to a specific set of coordinates
-stations2009[stations2009$photos > 1,] # there were a few instances where 2 photos were taken at the exact same location/station. This is fine. 
+stations2009[stations2009$numphotos > 1,] # there were a few instances where 2 photos were taken at the exact same location/station. This is fine. 
 dim(stations2009) # 1754 different locations (5 locations had 2 photos taken)
 
 ### how many photos were scrapped? were any stations completely removed?
@@ -403,8 +403,6 @@ ggplot() +
   coord_map() + 
   ggtitle("2009 Photos")
 
-
-## Inshore cod survey bycatch for Irene
 require(rgdal) 
 require(maptools)
 require(mapplots)
@@ -479,6 +477,10 @@ ggplot() +
   ggtitle("2009 imagery")
 dev.off()
 
+
+
+
+
 ### 2011
 ### how many photos were scrapped? were any stations completely removed?
 dim(clean2011)
@@ -505,7 +507,7 @@ groundtruth_photos <- ddply(.data=groundtruth2011, .(STATION_NUM),
                             groundphotos = length(unique(unid)))
 groundtruth_photos$folder <- str_pad(groundtruth_photos$STATION_NUM,width = 4, side = "left",pad = 0)
 groundtruthphotos_chk <- full_join(groundtruth_photos, photosper)
-groundtruthphotos_chk[!groundtruthphotos_chk$photos == groundtruthphotos_chk$nphotos,]
+groundtruthphotos_chk[!groundtruthphotos_chk$groundphotos == groundtruthphotos_chk$nphotos,]
 
 photos2011 <- ddply(clean2011, .(STATION_NUM, Mussels),
                     summarize,
@@ -535,6 +537,8 @@ clean2011 <- clean2011[!clean2011$unid %in% c("35_411", "69_69020", "69_69029"),
 ### Now we're really clean. 
 #write.csv(clean2011, "clean2011.csv")
 
+clean2011 <- read.csv("clean2011.csv")
+
 ### 2011
 require(plyr)
 dim(clean2011)
@@ -545,9 +549,15 @@ stations2011 <- ddply(.data=clean2011, .(PHOTO_LAT, PHOTO_LONG),
                       photos = length(PHOTO_FILE_NAME),
                       numphotos = length(unique(PHOTO_FILE_NAME)))
 stations2011[stations2011$stations > 1,] # so each station relates to a specific set of coordinates
-stations2011[stations2011$photos > 1,] # there were a few instances where 2 photos were taken at the exact same location/station. This is fine. 
+stations2011[stations2011$numphotos > 1,] # there were a few instances where 2 photos were taken at the exact same location/station. This is fine. 
 dim(stations2011) # 1336 different locations (3 locations had 2 photos taken)
 
+photos2011 <- ddply(clean2011, .(STATION_NUM, Mussels),
+                    summarize,
+                    mean_lat=mean(PHOTO_LAT),
+                    mean_lon=mean(PHOTO_LONG),
+                    num_photos=length(unique(unid)))
+#### HERE
 length(unique(photos2011$STATION_NUM[photos2011$Mussels %in% c("MusselReef", "Shells")])) #6 stations with Reef OR Shells
 length(unique(photos2011$STATION_NUM[photos2011$Mussels %in% c("MusselReef")])) #1 stations with Reef
 length(unique(photos2011$STATION_NUM[photos2011$Mussels %in% c("Shells")])) #6 stations with Shells
@@ -575,12 +585,12 @@ photos2011_plot <- ddply(.data=photos2011, .(mean_lon, mean_lat),
 photos2011_plot$Mussels <- as.factor(photos2011_plot$Mussels)
 levels(photos2011_plot$Mussels) <- c("Absent", "Shells", "Reef")
 
-ggplot() + 
-  geom_polygon(data=maritimes, aes(long, lat, group=group), fill="darkgrey", colour="black") +
-  geom_point(data=photos2011_plot %>% arrange(Mussels), aes(mean_lon, mean_lat, colour=Mussels), size=3) + theme_bw() + theme(panel.grid=element_blank()) +
-  coord_map() + 
-  ggtitle("2011 Images") #+
-facet_wrap(~Mussels)
+# ggplot() + 
+#   geom_polygon(data=maritimes, aes(long, lat, group=group), fill="darkgrey", colour="black") +
+#   geom_point(data=photos2011_plot %>% arrange(Mussels), aes(mean_lon, mean_lat, colour=Mussels), size=3) + theme_bw() + theme(panel.grid=element_blank()) +
+#   coord_map() + 
+#   ggtitle("2011 Images") #+
+# facet_wrap(~Mussels)
 
 clean2011utm <- read.csv("clean2011_utm.csv", stringsAsFactors = F)
 clean2011utm <- dplyr::select(clean2011utm, unid, POINT_X, POINT_Y)
