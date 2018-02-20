@@ -385,7 +385,10 @@ photos2009_plot <- ddply(.data=photos2009, .(STATION_NUM),
                          mean_lon = mean(mean_lon),
                          Mussels = max(as.numeric(Mussels)),
                          NumPhotos = sum(num_photos))
-
+# photos2009_plot <- ddply(.data=clean2009, .(STATION_NUM),
+#                          summarize, 
+#                          Mussels = max(as.numeric(Mussels)),
+#                          NumPhotos = length(unique(unid)))
 photos2009_plot$Mussels <- as.factor(photos2009_plot$Mussels)
 levels(photos2009_plot$Mussels) <- c("Absent", "Shells", "Reef")
 
@@ -557,7 +560,14 @@ photos2011 <- ddply(clean2011, .(STATION_NUM, Mussels),
                     mean_lat=mean(PHOTO_LAT),
                     mean_lon=mean(PHOTO_LONG),
                     num_photos=length(unique(unid)))
-#### HERE
+summary(photos2011)
+
+photos2011_summary <- ddply(.data=clean2011, .(STATION_NUM),
+                         summarize,
+                         Mussels = max(as.numeric(Mussels)),
+                         NumPhotos = length(unique(unid)))
+summary(photos2011_summary)
+
 length(unique(photos2011$STATION_NUM[photos2011$Mussels %in% c("MusselReef", "Shells")])) #6 stations with Reef OR Shells
 length(unique(photos2011$STATION_NUM[photos2011$Mussels %in% c("MusselReef")])) #1 stations with Reef
 length(unique(photos2011$STATION_NUM[photos2011$Mussels %in% c("Shells")])) #6 stations with Shells
@@ -596,7 +606,9 @@ clean2011utm <- read.csv("clean2011_utm.csv", stringsAsFactors = F)
 clean2011utm <- dplyr::select(clean2011utm, unid, POINT_X, POINT_Y)
 clean2011 <- left_join(clean2011, clean2011utm)
 
-
+clean2011$Mussels <- as.character(clean2011$Mussels)
+clean2011$Mussels[is.na(clean2011$Mussels)] <- "0"
+clean2011$Mussels <- as.factor(clean2011$Mussels)
 levels(clean2011$Mussels) <- c("0", "2", "1")
 clean2011$Mussels <- factor(clean2011$Mussels, levels = c("0", "1", "2"))
 clean2011$Mussels <- as.numeric(clean2011$Mussels)
