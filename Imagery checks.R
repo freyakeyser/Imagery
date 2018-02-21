@@ -210,29 +210,29 @@ photoswithoutnav2009[photoswithoutnav2009$Mussels=="Shells",]
 clean2009 <- join2009_full[!is.na(join2009_full$EXPED_CD),]
 dim(clean2009) # 1759   29
 length(unique(clean2009$unid))
-write.csv(clean2009, "clean2009.csv")
+##write.csv(clean2009, "clean2009.csv")
 
 
 ### now we'll do the same checks for 2011. based on Caira's report, station 2 and 29 had issues. 
 ### Let's identify the photos without nav data
 photoswithoutnav2011 <- join2011_full[is.na(join2011_full$EXPED_CD),]
 dim(photoswithoutnav2011) # 144 29
-View(photoswithoutnav2011)
+#View(photoswithoutnav2011)
 summary(photoswithoutnav2011) 
 table(photoswithoutnav2011$STATION_NUM)
 
 ### let's focus on stations 9, 52, 69, 121 and 178
 
 ## Caira noted that there were 55 nav records from station 29 that did not have photos. Let's check out these records to see if any patterns pop out.
-## need to look at the photo_file_names from photoswithoutnav2009 to be sure
+## need to look at the photo_file_names from photoswithoutnav2011 to be sure
 fromcairaslist <- as.character(c(291, 292, 293, 294, 295, 296, 297, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312,
- 313, 314, 315, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 336,
- 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 350, 351, 358, 359,
- 362, 363, 364, 365, 366, 367))
+                                 313, 314, 315, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 336, 337, 
+                                 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 350, 351, 358, 359, 362, 363, 
+                                 364, 365, 366, 367))
 photoswithoutnav2011[photoswithoutnav2011$STATION_NUM == 29,] # none
 nav2011[nav2011$STATION_NUM == 29,] # none
 nav2011[nav2011$STATION_NUM == 9,] # none
-groundtruth2011[groundtruth2011$STATION_NUM == 9,] # 77 6
+groundtruth2011[groundtruth2011$STATION_NUM == 9,] # dim=77 6
 unique(join2011_full$EXPED_CD[join2011_full$STATION_NUM==9]) #  all NA so station 9 is missing from full join
 unique(join2011_full$ID.Date[join2011_full$STATION_NUM==29]) #  all NA so station 29 is missing from full join
 ## does it exist in original nav2011 df?
@@ -242,7 +242,7 @@ groundtruth2011[groundtruth2011$STATION_NUM == 29,] # no photos labelled station
 sort(unique(groundtruth2011$STATION_NUM)) # compared to the folder names in Photos/2011036. 55 Items in Station 0009. No station 29.
 length(unique(groundtruth2011$PHOTO_FILE_NAME[groundtruth2011$STATION_NUM == 9])) # 77. Why are there more records than there are photos? 
 ### photos 298 - 302, 316 - 321, 334, 335, 349, 352-357, 360-361 are missing from folder!
-### 55 + 5 + 6 + 3 + 6 + 2 = 77
+### 55 + the missing ones above (5 + 6 + 3 + 6 + 2) = 77
 ### I suspect that the station_num 29 nav data corresponds to station_num 9 photos. Let's change caira2011 station_num 29 to 9, then rejoin.
 
 ### a few final checks
@@ -269,9 +269,10 @@ length(join2011_full$unid[is.na(join2011_full$ID.Date)]) #0
 ### now let's recreate photoswithoutnav2011 again
 photoswithoutnav2011 <- join2011_full[is.na(join2011_full$EXPED_CD),]
 dim(photoswithoutnav2011) # 89 29
-View(photoswithoutnav2011)
+#View(photoswithoutnav2011)
 summary(photoswithoutnav2011)
 table(photoswithoutnav2011$STATION_NUM) 
+arrange(photoswithoutnav2011, STATION_NUM)[, c("STATION_NUM", "PHOTO_FILE_NAME")]
 
 ### are these all valid station numbers?
 table(nav2011$STATION_NUM[nav2011$STATION_NUM %in% unique(photoswithoutnav2011$STATION_NUM)])
@@ -282,10 +283,6 @@ table(nav2011$STATION_NUM[nav2011$STATION_NUM %in% unique(photoswithoutnav2011$S
 unique(photoswithoutnav2011$Mussels)
 ### no mussels or shells so we can probably get rid of these.
 photoswithoutnav2011[photoswithoutnav2011$Mussels=="Shells",]
-
-# dim(nav2009[nav2009$unid=="23_115508" | nav2009$PHOTO_FILE_NAME=="115508" | nav2009$STATION_NUM==23,]) # definitely not there. Fortunately, we have other photos from this station so this shouldnt matter
-# dim(nav2009[nav2009$unid=="24_98" | nav2009$PHOTO_FILE_NAME=="98" | nav2009$STATION_NUM==24,]) # definitely not there. Fortunately, we have other photos from this station so this shouldnt matter
-# dim(nav2009[nav2009$unid=="35_144206" | nav2009$PHOTO_FILE_NAME=="144206" | nav2009$STATION_NUM==35,]) # definitely not there. Fortunately, we have other photos from this station so this shouldnt matter
 
 ### CLEAN DF FOR 2011: 
 clean2011 <- join2011_full[!is.na(join2011_full$EXPED_CD),]
@@ -350,7 +347,8 @@ photos2009_chk <- full_join(photos2009_chk, photosper)
 photos2009_chk[!photos2009_chk$photos_clean == photos2009_chk$nphotos,]
 ### since there are more photos in the directory than in clean, clean2009 is fine.
 
-
+arrange(clean2009[clean2009$Mussels%in%c("MusselReef"),][,c("STATION_NUM", "PHOTO_FILE_NAME", "PHOTO_LAT", "PHOTO_LONG", "Mussels")], STATION_NUM, PHOTO_FILE_NAME)
+View(arrange(clean2009[clean2009$Mussels%in%c("Shells"),][,c("STATION_NUM", "PHOTO_FILE_NAME", "PHOTO_LAT", "PHOTO_LONG", "Mussels")], STATION_NUM, PHOTO_FILE_NAME))
 
 
 photos2009 <- ddply(clean2009, .(STATION_NUM, Mussels),
@@ -391,6 +389,8 @@ photos2009_plot <- ddply(.data=photos2009, .(STATION_NUM),
 #                          NumPhotos = length(unique(unid)))
 photos2009_plot$Mussels <- as.factor(photos2009_plot$Mussels)
 levels(photos2009_plot$Mussels) <- c("Absent", "Shells", "Reef")
+
+photos2009_plot[!(photos2009_plot$Mussels=="Absent"),]
 
 ### MUSSEL RESULTS
 ggplot() + 
@@ -510,7 +510,15 @@ groundtruth_photos <- ddply(.data=groundtruth2011, .(STATION_NUM),
                             groundphotos = length(unique(unid)))
 groundtruth_photos$folder <- str_pad(groundtruth_photos$STATION_NUM,width = 4, side = "left",pad = 0)
 groundtruthphotos_chk <- full_join(groundtruth_photos, photosper)
-groundtruthphotos_chk[!groundtruthphotos_chk$groundphotos == groundtruthphotos_chk$nphotos,]
+listed <- groundtruthphotos_chk[!groundtruthphotos_chk$groundphotos == groundtruthphotos_chk$nphotos,]
+
+listed$groundphotos - listed$nphotos
+
+
+arrange(clean2011[clean2011$Mussels%in%c("MusselReef"),][,c("STATION_NUM", "PHOTO_FILE_NAME", "PHOTO_LAT", "PHOTO_LONG", "Mussels")], STATION_NUM, PHOTO_FILE_NAME)
+View(arrange(clean2011[clean2011$Mussels%in%c("Shells"),][,c("STATION_NUM", "PHOTO_FILE_NAME", "PHOTO_LAT", "PHOTO_LONG", "Mussels")], STATION_NUM, PHOTO_FILE_NAME))
+
+
 
 photos2011 <- ddply(clean2011, .(STATION_NUM, Mussels),
                     summarize,
