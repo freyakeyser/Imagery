@@ -406,6 +406,18 @@ ggplot() +
   coord_map() + 
   ggtitle("2009 Photos")
 
+### All mussel locations
+png("Y:/NRCAN Photo Data/Data Checks/Final Files/mussel locations 2009.png", height=500, width=800, res=100)
+ggplot() + 
+  geom_polygon(data=maritimes, aes(long, lat, group=group), fill="darkgrey", colour="black") +
+  geom_point(data=clean2009[clean2009$Mussels == "Shells",], aes(PHOTO_LONG, PHOTO_LAT, fill=Mussels), shape = 21, size=3) + 
+  geom_point(data=clean2009[clean2009$Mussels == "MusselReef",], aes(PHOTO_LONG, PHOTO_LAT, fill=Mussels), shape = 21, size=3) + 
+  theme_bw() + theme(panel.grid=element_blank()) +
+  scale_fill_manual(values=c("red", "yellow"), labels=c("Reef", "Shells")) +
+  coord_map(xlim = c(-67, -64), ylim=c(44.25, 45.5)) + 
+  ggtitle("2009 Photos")
+dev.off()
+
 require(rgdal) 
 require(maptools)
 require(mapplots)
@@ -602,6 +614,22 @@ photos2011_plot <- ddply(.data=photos2011, .(mean_lon, mean_lat),
 
 photos2011_plot$Mussels <- as.factor(photos2011_plot$Mussels)
 levels(photos2011_plot$Mussels) <- c("Absent", "Shells", "Reef")
+
+clean2011$Mussels <- factor(clean2011$Mussels, levels=c("Absent", "Shells", "MusselReef"))
+
+### All mussel locations
+png("Y:/NRCAN Photo Data/Data Checks/Final Files/mussel locations 2011.png", height=500, width=800, res=100)
+ggplot() + 
+  geom_polygon(data=maritimes, aes(long, lat, group=group), fill="darkgrey", colour="black") +
+  geom_point(data=clean2011[clean2011$Mussels == "Shells",], 
+             aes(PHOTO_LONG, PHOTO_LAT, fill=Mussels), shape = 21, size=3) + 
+  geom_point(data=clean2011[clean2011$Mussels == "MusselReef",], 
+             aes(PHOTO_LONG, PHOTO_LAT, fill=Mussels), shape = 21, size=3) + 
+  theme_bw() + theme(panel.grid=element_blank()) +
+  scale_fill_manual(values=c("red", "yellow"), labels=c("Reef", "Shells")) +
+  coord_map(xlim = c(-67.25, -64), ylim=c(44.25, 45.75)) + 
+  ggtitle("2011 Photos")
+dev.off()
 
 # ggplot() + 
 #   geom_polygon(data=maritimes, aes(long, lat, group=group), fill="darkgrey", colour="black") +
